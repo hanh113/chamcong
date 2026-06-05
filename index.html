@@ -212,7 +212,7 @@ button:active {
     <button class="btn-secondary" onclick="exportCSV()">📤 Xuất file CSV</button>
 </div>
 
-<h3 style="padding-left: 8px;">History</h3>
+<h3 style="padding-left: 8px;">Lịch sử chấm công</h3>
 <div id="records"></div>
 
 <script>
@@ -273,17 +273,22 @@ function calcOT(end) {
 }
 
 function saveRecord() {
-    const rec = {
-        date: workDate.value,
-        checkIn: checkIn.value,
-        checkOut: checkOut.value,
-        remark: remark.value.trim()
-    };
+    const dateVal = document.getElementById("workDate").value;
+    const checkInVal = document.getElementById("checkIn").value;
+    const checkOutVal = document.getElementById("checkOut").value;
+    const remarkVal = document.getElementById("remark").value;
 
-    if (!rec.date) {
+    if (!dateVal) {
         alert("Vui lòng chọn ngày làm việc!");
         return;
     }
+
+    const rec = {
+        date: dateVal,
+        checkIn: checkInVal,
+        checkOut: checkOutVal,
+        remark: remarkVal.trim()
+    };
 
     let data = loadData();
     const idx = data.findIndex(x => x.date === rec.date);
@@ -300,10 +305,10 @@ function editRecord(date) {
     const r = loadData().find(x => x.date === date);
     if (!r) return;
 
-    workDate.value = r.date;
-    checkIn.value = r.checkIn;
-    checkOut.value = r.checkOut;
-    remark.value = r.remark || "";
+    document.getElementById("workDate").value = r.date;
+    document.getElementById("checkIn").value = r.checkIn;
+    document.getElementById("checkOut").value = r.checkOut;
+    document.getElementById("remark").value = r.remark || "";
 
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -316,22 +321,26 @@ function deleteRecord(date) {
 }
 
 function buildMonths() {
+    const monthFilterEl = document.getElementById("monthFilter");
     const months = [...new Set(loadData().map(x => x.date.substring(0, 7)))].sort().reverse();
-    const cur = monthFilter.value;
-    monthFilter.innerHTML = "<option value=''>Tất cả thời gian</option>";
+    const cur = monthFilterEl.value;
+    
+    monthFilterEl.innerHTML = "<option value=''>Tất cả thời gian</option>";
     months.forEach(m => {
         const [year, month] = m.split("-");
-        monthFilter.innerHTML += `<option value="${m}">Tháng ${month}/${year}</option>`;
+        monthFilterEl.innerHTML += `<option value="${m}">Tháng ${month}/${year}</option>`;
     });
-    monthFilter.value = cur;
+    monthFilterEl.value = cur;
 }
 
 function render() {
     buildMonths();
 
+    const monthFilterVal = document.getElementById("monthFilter").value;
     let data = loadData();
-    if (monthFilter.value) {
-        data = data.filter(x => x.date.startsWith(monthFilter.value));
+    
+    if (monthFilterVal) {
+        data = data.filter(x => x.date.startsWith(monthFilterVal));
     }
 
     data.sort((a, b) => b.date.localeCompare(a.date));
@@ -346,7 +355,6 @@ function render() {
         totalHours += hours;
         totalOT += ot;
 
-        // Formatting date for localized display
         const [y, m, d] = r.date.split("-");
         const formattedDate = `${d}/${m}/${y}`;
 
@@ -364,10 +372,10 @@ function render() {
         </div>`;
     });
 
-    records.innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có dữ liệu nào.</div>';
-    workDays.innerText = days;
-    totalHours.innerText = totalHours.toFixed(2);
-    totalOT.innerText = totalOT.toFixed(2);
+    document.getElementById("records").innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có dữ liệu nào.</div>';
+    document.getElementById("workDays").innerText = days;
+    document.getElementById("totalHours").innerText = totalHours.toFixed(2);
+    document.getElementById("totalOT").innerText = totalOT.toFixed(2);
 }
 
 function exportCSV() {
