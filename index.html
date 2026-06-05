@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chấm Công Cá Nhân</title>
+<style>
+:root {
+    --primary: #007aff;
+    --danger: #ff3b30;
+    --success: #34c759;
+    --warning: #ff9500;
+    --bg: #f2f2f7;
+    --card-bg: #ffffff;
+    --text: #1c1c1e;
+    --text-muted: #8e8e93;
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    max-width: 600px;
+    margin: auto;
+    line-height: 1.4;
+}
+h2, h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+.card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.form-group {
+    margin-bottom: 14px;
+}
+label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+input, textarea, select {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    background: #f2f2f7;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+}
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+}
+textarea {
+    resize: vertical;
+    height: 80px;
+}
+button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+button:active {
+    opacity: 0.8;
+}
+.btn-secondary {
+    background: #e5e5ea;
+    color: var(--primary);
+    margin-top: 8px;
+}
+.summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.sum {
+    background: #f8f8fa;
+    padding: 12px 8px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #e5e5ea;
+}
+.sum div {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.sum b {
+    font-size: 18px;
+    color: var(--text);
+}
+.record-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
+    border-bottom: 1px solid #f2f2f7;
+    padding-bottom: 8px;
+}
+.record {
+    background: var(--card-bg);
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-left: 4px solid var(--primary);
+}
+.record-meta {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.record-remark {
+    font-size: 14px;
+    color: var(--text-muted);
+    background: #f2f2f7;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-top: 8px;
+}
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+.actions button {
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 8px;
+}
+.btn-edit {
+    background: #e5e5ea;
+    color: var(--text);
+}
+.btn-delete {
+    background: var(--danger);
+}
+.flex-row {
+    display: flex;
+    gap: 12px;
+}
+.flex-row .form-group {
+    flex: 1;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h2>📋 Chấm Công Cá Nhân</h2>
+    
+    <div class="form-group">
+        <label>Ngày làm việc</label>
+        <input type="date" id="workDate">
+    </div>
+
+    <div class="flex-row">
+        <div class="form-group">
+            <label>Giờ vào</label>
+            <input type="time" id="checkIn" value="08:00">
+        </div>
+        <div class="form-group">
+            <label>Giờ ra</label>
+            <input type="time" id="checkOut" value="17:00">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Ghi chú / Công việc</label>
+        <textarea id="remark" placeholder="Nhập ghi chú nếu có..."></textarea>
+    </div>
+
+    <button onclick="saveRecord()">💾 Lưu bản ghi</button>
+</div>
+
+<div class="card">
+    <div class="form-group">
+        <label>Bộ lọc theo Tháng</label>
+        <select id="monthFilter" onchange="render()">
+            <option value="">Tất cả thời gian</option>
+        </select>
+    </div>
+
+    <div class="summary">
+        <div class="sum"><div>Ngày công</div><b id="workDays">0</b></div>
+        <div class="sum"><div>Tổng giờ</div><b id="totalHours">0</b></div>
+        <div class="sum"><div>Tăng ca</div><b id="totalOT">0</b></div>
+    </div>
+
+    <button class="btn-secondary" onclick="exportCSV()">📤 Xuất file CSV</button>
+</div>
+
+<h3 style="padding-left: 8px;">History</h3>
+<div id="records"></div>
+
+<script>
+const KEY = "work_tracker_v3";
+
+// Core data access operations
+function loadData() {
+    return JSON.parse(localStorage.getItem(KEY) || "[]");
+}
+
+function saveData(d) {
+    localStorage.setItem(KEY, JSON.stringify(d));
+}
+
+function initForm() {
+    document.getElementById("workDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("checkIn").value = "08:00";
+    document.getElementById("checkOut").value = "17:00";
+    document.getElementById("remark").value = "";
+}
+
+function toMinutes(t) {
+    if (!t) return 0;
+    const p = t.split(":");
+    return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+
+// Calculates standard work hours excluding lunch break
+function calcWorkHours(start, end) {
+    let startMin = toMinutes(start);
+    let endMin = toMinutes(end);
+    let totalMins = endMin - startMin;
+    
+    if (totalMins <= 0) return 0;
+
+    const lunchStart = 12 * 60; 
+    const lunchEnd = 13 * 60;   
+
+    // Subtract lunch hour if working period overlaps with the lunch break interval
+    if (startMin < lunchEnd && endMin > lunchStart) {
+        let overlapStart = Math.max(startMin, lunchStart);
+        let overlapEnd = Math.min(endMin, lunchEnd);
+        let overlapMins = overlapEnd - overlapStart;
+        if (overlapMins > 0) {
+            totalMins -= overlapMins;
+        }
+    }
+
+    return totalMins / 60;
+}
+
+// Calculates overtime hours assuming OT starts post 17:00
+function calcOT(end) {
+    const otStart = 17 * 60;
+    const endMin = toMinutes(end);
+    if (endMin <= otStart) return 0;
+    return (endMin - otStart) / 60;
+}
+
+function saveRecord() {
+    const rec = {
+        date: workDate.value,
+        checkIn: checkIn.value,
+        checkOut: checkOut.value,
+        remark: remark.value.trim()
+    };
+
+    if (!rec.date) {
+        alert("Vui lòng chọn ngày làm việc!");
+        return;
+    }
+
+    let data = loadData();
+    const idx = data.findIndex(x => x.date === rec.date);
+
+    if (idx >= 0) data[idx] = rec;
+    else data.push(rec);
+
+    saveData(data);
+    initForm();
+    render();
+}
+
+function editRecord(date) {
+    const r = loadData().find(x => x.date === date);
+    if (!r) return;
+
+    workDate.value = r.date;
+    checkIn.value = r.checkIn;
+    checkOut.value = r.checkOut;
+    remark.value = r.remark || "";
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function deleteRecord(date) {
+    if (!confirm("Bạn có chắc chắn muốn xóa bản ghi ngày " + date + "?")) return;
+    let data = loadData().filter(x => x.date !== date);
+    saveData(data);
+    render();
+}
+
+function buildMonths() {
+    const months = [...new Set(loadData().map(x => x.date.substring(0, 7)))].sort().reverse();
+    const cur = monthFilter.value;
+    monthFilter.innerHTML = "<option value=''>Tất cả thời gian</option>";
+    months.forEach(m => {
+        const [year, month] = m.split("-");
+        monthFilter.innerHTML += `<option value="${m}">Tháng ${month}/${year}</option>`;
+    });
+    monthFilter.value = cur;
+}
+
+function render() {
+    buildMonths();
+
+    let data = loadData();
+    if (monthFilter.value) {
+        data = data.filter(x => x.date.startsWith(monthFilter.value));
+    }
+
+    data.sort((a, b) => b.date.localeCompare(a.date));
+
+    let days = 0, totalHours = 0, totalOT = 0, html = "";
+
+    data.forEach(r => {
+        const hours = calcWorkHours(r.checkIn, r.checkOut);
+        const ot = calcOT(r.checkOut);
+
+        if (hours > 0) days++;
+        totalHours += hours;
+        totalOT += ot;
+
+        // Formatting date for localized display
+        const [y, m, d] = r.date.split("-");
+        const formattedDate = `${d}/${m}/${y}`;
+
+        html += `
+        <div class="record">
+            <div class="record-title">📅 Ngày ${formattedDate}</div>
+            <div class="record-meta">🕒 Khung giờ: <b>${r.checkIn}</b> → <b>${r.checkOut}</b></div>
+            <div class="record-meta">⏱ Thực làm: <b>${hours.toFixed(2)}</b> giờ (đã trừ nghỉ trưa)</div>
+            <div class="record-meta">🚀 Tăng ca: <span style="color:${ot > 0 ? 'var(--warning)' : 'inherit'}"><b>${ot.toFixed(2)}</b> giờ</span></div>
+            ${r.remark ? `<div class="record-remark">📝 ${r.remark}</div>` : ''}
+            <div class="actions">
+                <button class="btn-edit" onclick="editRecord('${r.date}')">Sửa</button>
+                <button class="btn-delete" onclick="deleteRecord('${r.date}')">Xóa</button>
+            </div>
+        </div>`;
+    });
+
+    records.innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có dữ liệu nào.</div>';
+    workDays.innerText = days;
+    totalHours.innerText = totalHours.toFixed(2);
+    totalOT.innerText = totalOT.toFixed(2);
+}
+
+function exportCSV() {
+    let csv = "\uFEFFNgay,GioVao,GioRa,GioLam(DaTruTrua),TangCa,GhiChu\n";
+
+    loadData().sort((a, b) => b.date.localeCompare(a.date)).forEach(r => {
+        const hours = calcWorkHours(r.checkIn, r.checkOut).toFixed(2);
+        const ot = calcOT(r.checkOut).toFixed(2);
+        const cleanRemark = (r.remark || "").replace(/"/g, '""');
+        csv += `${r.date},${r.checkIn},${r.checkOut},${hours},${ot},"${cleanRemark}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ChamCong_${new Date().toISOString().slice(0,7).replace('-','_')}.csv`;
+    a.click();
+}
+
+initForm();
+render();
+</script>
+</body>
+</html>
