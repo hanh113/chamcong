@@ -10,6 +10,7 @@
     --danger: #ff3b30;
     --success: #34c759;
     --warning: #ff9500;
+    --purple: #af52de;
     --bg: #f2f2f7;
     --card-bg: #ffffff;
     --text: #1c1c1e;
@@ -64,7 +65,7 @@ input:focus, textarea:focus, select:focus {
 }
 textarea {
     resize: vertical;
-    height: 80px;
+    height: 70px;
 }
 button {
     width: 100%;
@@ -128,6 +129,9 @@ button:active {
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     border-left: 4px solid var(--primary);
 }
+.record.leave-type {
+    border-left-color: var(--purple);
+}
 .record-meta {
     font-size: 14px;
     margin-bottom: 4px;
@@ -164,6 +168,78 @@ button:active {
 .flex-row .form-group {
     flex: 1;
 }
+
+/* Calendar Styles */
+.calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.calendar-nav button {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    background: #e5e5ea;
+    color: var(--text);
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    text-align: center;
+}
+.cal-header {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 4px 0;
+}
+.cal-day {
+    background: #f2f2f7;
+    border-radius: 8px;
+    padding: 6px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+.cal-day .num {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+.cal-day .dot {
+    font-size: 12px;
+    line-height: 1;
+}
+.cal-empty {
+    background: transparent;
+}
+/* Color coding for status */
+.cal-work { background: #e8f5e9; color: #2e7d32; }
+.cal-leave { background: #f3e5f5; color: #7b1fa2; }
+.cal-sunday { background: #e3f2fd; color: #1565c0; }
+.cal-absent { background: #ffebee; color: #c62828; }
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    font-size: 11px;
+    justify-content: center;
+    border-top: 1px solid #f2f2f7;
+    padding-top: 10px;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 </style>
 </head>
 <body>
@@ -171,12 +247,21 @@ button:active {
 <div class="card">
     <h2>📋 Chấm Công Cá Nhân</h2>
     
-    <div class="form-group">
-        <label>Ngày làm việc</label>
-        <input type="date" id="workDate">
+    <div class="flex-row">
+        <div class="form-group" style="flex: 1.2;">
+            <label>Ngày làm việc</label>
+            <input type="date" id="workDate">
+        </div>
+        <div class="form-group" style="flex: 0.8;">
+            <label>Hình thức</label>
+            <select id="workType" onchange="toggleTimeFields()">
+                <option value="work">Đi làm</option>
+                <option value="leave">Nghỉ phép</option>
+            </select>
+        </div>
     </div>
 
-    <div class="flex-row">
+    <div class="flex-row" id="timeFields">
         <div class="form-group">
             <label>Giờ vào</label>
             <input type="time" id="checkIn" value="08:00">
@@ -189,7 +274,7 @@ button:active {
 
     <div class="form-group">
         <label>Ghi chú / Công việc</label>
-        <textarea id="remark" placeholder="Nhập ghi chú nếu có..."></textarea>
+        <textarea id="remark" placeholder="Nhập ghi chú hoặc lý do nghỉ phép..."></textarea>
     </div>
 
     <button onclick="saveRecord()">💾 Lưu bản ghi</button>
@@ -198,9 +283,8 @@ button:active {
 <div class="card">
     <div class="form-group">
         <label>Bộ lọc theo Tháng</label>
-        <select id="monthFilter" onchange="render()">
-            <option value="">Tất cả thời gian</option>
-        </select>
+        <select id="monthFilter" onchange="onMonthFilterChange()">
+            </select>
     </div>
 
     <div class="summary">
@@ -212,13 +296,31 @@ button:active {
     <button class="btn-secondary" onclick="exportCSV()">📤 Xuất file CSV</button>
 </div>
 
+<div class="card" id="calendarCard">
+    <div class="calendar-nav">
+        <button onclick="changeCalendarMonth(-1)">◀ Tháng trước</button>
+        <h3 id="calendarTitle" style="margin: 0;">📅 Lịch</h3>
+        <button onclick="changeCalendarMonth(1)">Tháng sau ▶</button>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="legend">
+        <div class="legend-item"><span style="color:var(--success)">●</span> Đi làm</div>
+        <div class="legend-item"><span style="color:var(--purple)">●</span> Nghỉ phép</div>
+        <div class="legend-item"><span style="color:var(--primary)">●</span> Chủ Nhật</div>
+        <div class="legend-item"><span style="color:var(--danger)">●</span> Chưa chấm</div>
+    </div>
+</div>
+
 <h3 style="padding-left: 8px;">Lịch sử chấm công</h3>
 <div id="records"></div>
 
 <script>
 const KEY = "work_tracker_v3";
 
-// Core data access operations
+// Initializing active month state context coordinates
+let currentCalYear = new Date().getFullYear();
+let currentCalMonth = new Date().getMonth() + 1; // 1-12
+
 function loadData() {
     return JSON.parse(localStorage.getItem(KEY) || "[]");
 }
@@ -227,11 +329,23 @@ function saveData(d) {
     localStorage.setItem(KEY, JSON.stringify(d));
 }
 
+function toggleTimeFields() {
+    const type = document.getElementById("workType").value;
+    const timeFields = document.getElementById("timeFields");
+    if (type === "leave") {
+        timeFields.style.display = "none";
+    } else {
+        timeFields.style.display = "flex";
+    }
+}
+
 function initForm() {
     document.getElementById("workDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("workType").value = "work";
     document.getElementById("checkIn").value = "08:00";
     document.getElementById("checkOut").value = "17:00";
     document.getElementById("remark").value = "";
+    toggleTimeFields();
 }
 
 function toMinutes(t) {
@@ -240,10 +354,11 @@ function toMinutes(t) {
     return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
 }
 
-// Calculates standard work hours excluding lunch break
-function calcWorkHours(start, end) {
-    let startMin = toMinutes(start);
-    let endMin = toMinutes(end);
+function calcWorkHours(r) {
+    if (r.type === "leave") return 8.0; 
+    
+    let startMin = toMinutes(r.checkIn);
+    let endMin = toMinutes(r.checkOut);
     let totalMins = endMin - startMin;
     
     if (totalMins <= 0) return 0;
@@ -251,7 +366,6 @@ function calcWorkHours(start, end) {
     const lunchStart = 12 * 60; 
     const lunchEnd = 13 * 60;   
 
-    // Subtract lunch hour if working period overlaps with the lunch break interval
     if (startMin < lunchEnd && endMin > lunchStart) {
         let overlapStart = Math.max(startMin, lunchStart);
         let overlapEnd = Math.min(endMin, lunchEnd);
@@ -264,16 +378,18 @@ function calcWorkHours(start, end) {
     return totalMins / 60;
 }
 
-// Calculates overtime hours assuming OT starts post 17:00
-function calcOT(end) {
+function calcOT(r) {
+    if (r.type === "leave") return 0; 
+    
     const otStart = 17 * 60;
-    const endMin = toMinutes(end);
+    const endMin = toMinutes(r.checkOut);
     if (endMin <= otStart) return 0;
     return (endMin - otStart) / 60;
 }
 
 function saveRecord() {
     const dateVal = document.getElementById("workDate").value;
+    const typeVal = document.getElementById("workType").value;
     const checkInVal = document.getElementById("checkIn").value;
     const checkOutVal = document.getElementById("checkOut").value;
     const remarkVal = document.getElementById("remark").value;
@@ -285,8 +401,9 @@ function saveRecord() {
 
     const rec = {
         date: dateVal,
-        checkIn: checkInVal,
-        checkOut: checkOutVal,
+        type: typeVal,
+        checkIn: typeVal === "leave" ? "" : checkInVal,
+        checkOut: typeVal === "leave" ? "" : checkOutVal,
         remark: remarkVal.trim()
     };
 
@@ -297,6 +414,11 @@ function saveRecord() {
     else data.push(rec);
 
     saveData(data);
+    
+    const [y, m] = dateVal.split("-").map(Number);
+    currentCalYear = y;
+    currentCalMonth = m;
+
     initForm();
     render();
 }
@@ -306,10 +428,12 @@ function editRecord(date) {
     if (!r) return;
 
     document.getElementById("workDate").value = r.date;
-    document.getElementById("checkIn").value = r.checkIn;
-    document.getElementById("checkOut").value = r.checkOut;
+    document.getElementById("workType").value = r.type || "work";
+    document.getElementById("checkIn").value = r.checkIn || "08:00";
+    document.getElementById("checkOut").value = r.checkOut || "17:00";
     document.getElementById("remark").value = r.remark || "";
 
+    toggleTimeFields();
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -322,15 +446,106 @@ function deleteRecord(date) {
 
 function buildMonths() {
     const monthFilterEl = document.getElementById("monthFilter");
-    const months = [...new Set(loadData().map(x => x.date.substring(0, 7)))].sort().reverse();
-    const cur = monthFilterEl.value;
+    const data = loadData();
     
-    monthFilterEl.innerHTML = "<option value=''>Tất cả thời gian</option>";
-    months.forEach(m => {
+    // Extract unique historical lists combined with current dynamic coordinates bounds
+    const uniqueMonths = new Set(data.map(x => x.date.substring(0, 7)));
+    const currentViewString = `${currentCalYear}-${String(currentCalMonth).padStart(2, '0')}`;
+    uniqueMonths.add(currentViewString);
+    
+    const sortedMonths = [...uniqueMonths].sort().reverse();
+    
+    monthFilterEl.innerHTML = "";
+    sortedMonths.forEach(m => {
         const [year, month] = m.split("-");
         monthFilterEl.innerHTML += `<option value="${m}">Tháng ${month}/${year}</option>`;
     });
-    monthFilterEl.value = cur;
+    
+    monthFilterEl.value = currentViewString;
+}
+
+function onMonthFilterChange() {
+    const filterVal = document.getElementById("monthFilter").value;
+    if (filterVal) {
+        const [y, m] = filterVal.split("-").map(Number);
+        currentCalYear = y;
+        currentCalMonth = m;
+    }
+    render();
+}
+
+function changeCalendarMonth(offset) {
+    currentCalMonth += offset;
+    if (currentCalMonth > 12) {
+        currentCalMonth = 1;
+        currentCalYear += 1;
+    } else if (currentCalMonth < 1) {
+        currentCalMonth = 12;
+        currentCalYear -= 1;
+    }
+    
+    render();
+}
+
+function drawCalendar(year, month, recordMap) {
+    const grid = document.getElementById("calendarGrid");
+    const title = document.getElementById("calendarTitle");
+    grid.innerHTML = "";
+    
+    title.innerText = `📅 Tháng ${month}/${year}`;
+    
+    const weekDays = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+    weekDays.forEach(w => {
+        grid.innerHTML += `<div class="cal-header">${w}</div>`;
+    });
+    
+    const firstDayIndex = new Date(year, month - 1, 1).getDay(); 
+    const adjustedFirstDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    for (let i = 0; i < adjustedFirstDay; i++) {
+        grid.innerHTML += `<div class="cal-day cal-empty"></div>`;
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const currentStringDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayOfWeek = new Date(year, month - 1, day).getDay();
+        const isSunday = (dayOfWeek === 0);
+        
+        let statusClass = "cal-absent";
+        let markSymbol = "×";
+        
+        if (recordMap[currentStringDate]) {
+            if (recordMap[currentStringDate].type === "leave") {
+                statusClass = "cal-leave";
+                markSymbol = "✈️";
+            } else {
+                statusClass = "cal-work";
+                markSymbol = "✓";
+            }
+        } else if (isSunday) {
+            statusClass = "cal-sunday";
+            markSymbol = "✓";
+        }
+        
+        grid.innerHTML += `
+            <div class="cal-day ${statusClass}" onclick="quickSelectDate('${currentStringDate}')" style="cursor:pointer;">
+                <span class="num">${day}</span>
+                <span class="dot">${markSymbol}</span>
+            </div>`;
+    }
+}
+
+function quickSelectDate(dateStr) {
+    document.getElementById("workDate").value = dateStr;
+    const existingRecord = loadData().find(x => x.date === dateStr);
+    if (existingRecord) {
+        editRecord(dateStr);
+    } else {
+        document.getElementById("workType").value = "work";
+        document.getElementById("remark").value = "";
+        toggleTimeFields();
+    }
 }
 
 function render() {
@@ -338,6 +553,11 @@ function render() {
 
     const monthFilterVal = document.getElementById("monthFilter").value;
     let data = loadData();
+    
+    const recordMap = {};
+    data.forEach(r => recordMap[r.date] = r);
+    
+    drawCalendar(currentCalYear, currentCalMonth, recordMap);
     
     if (monthFilterVal) {
         data = data.filter(x => x.date.startsWith(monthFilterVal));
@@ -348,21 +568,25 @@ function render() {
     let days = 0, totalHours = 0, totalOT = 0, html = "";
 
     data.forEach(r => {
-        const hours = calcWorkHours(r.checkIn, r.checkOut);
-        const ot = calcOT(r.checkOut);
+        const hours = calcWorkHours(r);
+        const ot = calcOT(r);
 
-        if (hours > 0) days++;
+        days++; 
         totalHours += hours;
         totalOT += ot;
 
         const [y, m, d] = r.date.split("-");
         const formattedDate = `${d}/${m}/${y}`;
+        const isLeave = (r.type === "leave");
 
         html += `
-        <div class="record">
-            <div class="record-title">📅 Ngày ${formattedDate}</div>
-            <div class="record-meta">🕒 Khung giờ: <b>${r.checkIn}</b> → <b>${r.checkOut}</b></div>
-            <div class="record-meta">⏱ Thực làm: <b>${hours.toFixed(2)}</b> giờ (đã trừ nghỉ trưa)</div>
+        <div class="record ${isLeave ? 'leave-type' : ''}">
+            <div class="record-title">📅 Ngày ${formattedDate} ${isLeave ? '<span style="color:var(--purple);font-size:14px;">(Nghỉ phép)</span>' : ''}</div>
+            ${isLeave ? 
+                `<div class="record-meta">🕒 Trạng thái: <b>Nghỉ phép hưởng lương</b></div>` : 
+                `<div class="record-meta">🕒 Khung giờ: <b>${r.checkIn}</b> → <b>${r.checkOut}</b></div>`
+            }
+            <div class="record-meta">⏱ Tính công: <b>${hours.toFixed(2)}</b> giờ ${isLeave ? '(Mặc định)' : '(Đã trừ nghỉ trưa)'}</div>
             <div class="record-meta">🚀 Tăng ca: <span style="color:${ot > 0 ? 'var(--warning)' : 'inherit'}"><b>${ot.toFixed(2)}</b> giờ</span></div>
             ${r.remark ? `<div class="record-remark">📝 ${r.remark}</div>` : ''}
             <div class="actions">
@@ -372,20 +596,21 @@ function render() {
         </div>`;
     });
 
-    document.getElementById("records").innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có dữ liệu nào.</div>';
+    document.getElementById("records").innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có dữ liệu nào trong khoảng thời gian này.</div>';
     document.getElementById("workDays").innerText = days;
     document.getElementById("totalHours").innerText = totalHours.toFixed(2);
     document.getElementById("totalOT").innerText = totalOT.toFixed(2);
 }
 
 function exportCSV() {
-    let csv = "\uFEFFNgay,GioVao,GioRa,GioLam(DaTruTrua),TangCa,GhiChu\n";
+    let csv = "\uFEFFNgay,HinhThuc,GioVao,GioRa,GioLam,TangCa,GhiChu\n";
 
     loadData().sort((a, b) => b.date.localeCompare(a.date)).forEach(r => {
-        const hours = calcWorkHours(r.checkIn, r.checkOut).toFixed(2);
-        const ot = calcOT(r.checkOut).toFixed(2);
+        const hours = calcWorkHours(r).toFixed(2);
+        const ot = calcOT(r).toFixed(2);
+        const typeStr = r.type === "leave" ? "Nghi phep" : "Di lam";
         const cleanRemark = (r.remark || "").replace(/"/g, '""');
-        csv += `${r.date},${r.checkIn},${r.checkOut},${hours},${ot},"${cleanRemark}"\n`;
+        csv += `${r.date},${typeStr},${r.checkIn},${r.checkOut},${hours},${ot},"${cleanRemark}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
