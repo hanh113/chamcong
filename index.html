@@ -255,7 +255,8 @@ button:active {
         <div class="form-group" style="flex: 0.8;">
             <label>Hình thức</label>
             <select id="workType" onchange="toggleTimeFields()">
-                <option value="work">Đi làm</option>
+                <option value="work_meal">Đi làm có ăn</option>
+                <option value="work_no_meal">Đi làm không ăn</option>
                 <option value="leave">Nghỉ phép</option>
             </select>
         </div>
@@ -341,7 +342,7 @@ function toggleTimeFields() {
 
 function initForm() {
     document.getElementById("workDate").value = new Date().toISOString().split("T")[0];
-    document.getElementById("workType").value = "work";
+    document.getElementById("workType").value = "work_meal";
     document.getElementById("checkIn").value = "08:00";
     document.getElementById("checkOut").value = "17:00";
     document.getElementById("remark").value = "";
@@ -428,7 +429,12 @@ function editRecord(date) {
     if (!r) return;
 
     document.getElementById("workDate").value = r.date;
-    document.getElementById("workType").value = r.type || "work";
+    // Map legacy "work" status to new format to keep backward compatibility
+    if (r.type === "work") {
+        document.getElementById("workType").value = "work_meal";
+    } else {
+        document.getElementById("workType").value = r.type || "work_meal";
+    }
     document.getElementById("checkIn").value = r.checkIn || "08:00";
     document.getElementById("checkOut").value = r.checkOut || "17:00";
     document.getElementById("remark").value = r.remark || "";
@@ -516,10 +522,14 @@ function drawCalendar(year, month, recordMap) {
         let markSymbol = "×";
         
         if (recordMap[currentStringDate]) {
-            if (recordMap[currentStringDate].type === "leave") {
+            const rType = recordMap[currentStringDate].type;
+            if (rType === "leave") {
                 statusClass = "cal-leave";
                 markSymbol = "✈️";
-            } else {
+            } else if (rType === "work_meal" || rType === "work") { // "work" included for backward compatibility
+                statusClass = "cal-work";
+                markSymbol = "✓ 🍚";
+            } else if (rType === "work_no_meal") {
                 statusClass = "cal-work";
                 markSymbol = "✓";
             }
@@ -542,7 +552,7 @@ function quickSelectDate(dateStr) {
     if (existingRecord) {
         editRecord(dateStr);
     } else {
-        document.getElementById("workType").value = "work";
+        document.getElementById("workType").value = "work_meal";
         document.getElementById("remark").value = "";
         toggleTimeFields();
     }
@@ -578,10 +588,20 @@ function render() {
         const [y, m, d] = r.date.split("-");
         const formattedDate = `${d}/${m}/${y}`;
         const isLeave = (r.type === "leave");
+        
+        // Define display format text for types
+        let typeLabelText = "";
+        if (r.type === "leave") {
+            typeLabelText = '<span style="color:var(--purple);font-size:14px;">(Nghỉ phép)</span>';
+        } else if (r.type === "work_meal" || r.type === "work") {
+            typeLabelText = '<span style="color:var(--success);font-size:14px;">(Đi làm có ăn 🍚)</span>';
+        } else if (r.type === "work_no_meal") {
+            typeLabelText = '<span style="color:var(--success);font-size:14px;">(Đi làm không ăn)</span>';
+        }
 
         html += `
         <div class="record ${isLeave ? 'leave-type' : ''}">
-            <div class="record-title">📅 Ngày ${formattedDate} ${isLeave ? '<span style="color:var(--purple);font-size:14px;">(Nghỉ phép)</span>' : ''}</div>
+            <div class="record-title">📅 Ngày ${formattedDate} ${typeLabelText}</div>
             ${isLeave ? 
                 `<div class="record-meta">🕒 Trạng thái: <b>Nghỉ phép hưởng lương</b></div>` : 
                 `<div class="record-meta">🕒 Khung giờ: <b>${r.checkIn}</b> → <b>${r.checkOut}</b></div>`
@@ -608,7 +628,11 @@ function exportCSV() {
     loadData().sort((a, b) => b.date.localeCompare(a.date)).forEach(r => {
         const hours = calcWorkHours(r).toFixed(2);
         const ot = calcOT(r).toFixed(2);
-        const typeStr = r.type === "leave" ? "Nghi phep" : "Di lam";
+        
+        let typeStr = "Di lam co an";
+        if (r.type === "leave") typeStr = "Nghi phep";
+        else if (r.type === "work_no_meal") typeStr = "Di lam khong an";
+        
         const cleanRemark = (r.remark || "").replace(/"/g, '""');
         csv += `${r.date},${typeStr},${r.checkIn},${r.checkOut},${hours},${ot},"${cleanRemark}"\n`;
     });
